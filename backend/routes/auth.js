@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const msalClient = require("../services/msal");
-const Upload = require("../models/Upload");
+const Upload = require("../models/upload");
 const { appendShipments } = require("../services/excelService");
 
 router.get("/microsoft", async (req, res) => {
