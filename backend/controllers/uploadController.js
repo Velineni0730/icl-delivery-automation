@@ -1,6 +1,6 @@
 const { extractDeliverySheet } = require("../services/aiService");
 const calculateAmount = require("../utils/pricing");
-const Upload = require("../models/Upload");
+const Upload = require("../models/upload");
 
 exports.uploadImage = async (req, res) => {
   try {
