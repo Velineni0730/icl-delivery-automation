@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
   const login = async () => {
 
   setLoading(true);
@@ -126,8 +128,7 @@ export default function Login() {
 
   <div className="mt-12 text-sm text-gray-500">
 
-    Designed for courier businesses that still
-    rely on paper delivery sheets.
+    © {new Date().getFullYear()} Bharat Velineni.
 
   </div>
 
@@ -304,24 +305,16 @@ export default function Login() {
   {/* Explore */}
 
   <button
-    className="
-    w-full
-    rounded-3xl
-    border
-    border-gray-300
-    bg-white/40
-    py-4
-    text-gray-700
-    backdrop-blur-xl
-    transition-all
-    hover:bg-white/70
-    hover:shadow-lg
-    "
-  >
 
-    Explore Interactive Demo →
+  onClick={() => navigate("/demo")}
 
-  </button>
+  className="..."
+
+>
+
+  Explore Interactive Demo →
+
+</button>
 
 
 

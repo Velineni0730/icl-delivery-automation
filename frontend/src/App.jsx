@@ -1,45 +1,43 @@
 import { useEffect, useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 
-import { auth } from "/firebase";
+import { auth } from "./firebase";
 
-import Home from "/pages/Home";
-import Login from "/pages/Login";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Demo from "./pages/Demo";
+import Logs from "./pages/Logs";
 
 function App() {
-
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-
       setUser(currentUser);
       setCheckingAuth(false);
-
     });
 
-    return () => unsubscribe();
-
+    return unsubscribe;
   }, []);
 
   if (checkingAuth) {
-
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8F5F2]">
-
-        <p className="text-lg text-gray-600">
-          Loading...
-        </p>
-
+        <p className="text-lg text-gray-600">Loading...</p>
       </div>
     );
-
   }
 
-  return user ? <Home /> : <Login />;
-
+  return (
+    <Routes>
+      <Route path="/" element={user ? <Navigate to="/home" replace /> : <Login />} />
+      <Route path="/home" element={user ? <Home /> : <Navigate to="/" replace />} />
+      <Route path="/demo" element={<Demo />} />
+      <Route path="/logs" element={<Logs />} />
+    </Routes>
+  );
 }
 
 export default App;
