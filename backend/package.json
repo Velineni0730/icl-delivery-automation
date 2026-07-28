@@ -11,10 +11,14 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@azure/identity": "^4.13.1",
+    "@azure/msal-node": "^5.4.2",
     "@google/genai": "^2.13.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "isomorphic-fetch": "^3.0.0",
     "mongoose": "^9.8.0",
     "multer": "^2.2.0",
     "openai": "^6.49.0"
