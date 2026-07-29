@@ -15,6 +15,7 @@ export default function Home() {
   const galleryRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   const [status, setStatus] = useState("");
   const [uploadId, setUploadId] = useState(null);
   const [uploads, setUploads] = useState([]);
@@ -29,9 +30,9 @@ export default function Home() {
   }, []);
 
   const closeSheet = () => {
-  setUploadId(null);
-  setSheetDate("");
-  setRows([]);
+    setUploadId(null);
+    setSheetDate("");
+    setRows([]);
   };
 
   const loadPendingUploads = async () => {
@@ -97,7 +98,11 @@ export default function Home() {
 
     } catch (err) {
       console.error(err);
-      alert("Failed to process delivery sheet.");
+      if (err.response?.status === 429) {
+        alert("Gemini API rate limit reached.\n\nPlease wait a few minutes and try again.");
+      } else {
+        alert("Failed to process delivery sheet.");
+      }
     } finally {
       setLoading(false);
       setStatus("");
@@ -155,38 +160,46 @@ export default function Home() {
   };
 
   const saveChanges = async (updatedRows) => {
-  if (!uploadId) return;
+    if (!uploadId) return;
 
-  const totalShipments = updatedRows.length;
+    const totalShipments = updatedRows.length;
 
-  const totalAmount = updatedRows.reduce(
-    (sum, row) => sum + Number(row.amount || 0),
-    0
-  );
+    const totalAmount = updatedRows.reduce(
+      (sum, row) => sum + Number(row.amount || 0),
+      0
+    );
 
-  try {
-    await api.patch(`/upload/${uploadId}`, {
-      rows: updatedRows,
-      totalShipments,
-      totalAmount,
-    });
+    try {
+      const res = await api.patch(`/upload/${uploadId}`, {
+        rows: updatedRows,
+        totalShipments,
+        totalAmount,
+      });
 
-    setUploads(prev =>
-      prev.map(upload =>
-        upload._id === uploadId
-          ? {
+      if (res.data.deleted) {
+        setUploadId(null);
+        setSheetDate("");
+        setRows([]);
+        loadPendingUploads();
+        return;
+      }
+
+      setUploads(prev =>
+        prev.map(upload =>
+          upload._id === uploadId
+            ? {
               ...upload,
               totalShipments,
               totalAmount,
             }
-          : upload
-      )
-    );
+            : upload
+        )
+      );
 
-  } catch (err) {
-    console.error("Failed to save changes", err);
-  }
-};
+    } catch (err) {
+      console.error("Failed to save changes", err);
+    }
+  };
 
   const totalShipments = rows.length;
 
@@ -212,21 +225,42 @@ export default function Home() {
   };
 
   const handleConfirm = async () => {
-  if (!uploadId) return;
+    if (!uploadId) return;
 
-  try {
-    await api.patch(`/upload/${uploadId}`, {
-      rows,
-    });
-    console.log("Upload ID:", uploadId);
-    window.location.href =
-      `${API_URL}/auth/microsoft?uploadId=${uploadId}`;
+    const awbs = rows
+  .map(r => r.awb.trim())
+  .filter(awb => awb !== "");
 
-    return;
-  } catch (err) {
-    console.error(err);
-  }
-};
+    const duplicates = awbs.filter(
+      (awb, index) => awbs.indexOf(awb) !== index
+    );
+
+    if (duplicates.length > 0) {
+      alert(
+        `Duplicate AWB found.\n\n${[...new Set(duplicates)].join("\n")}`
+      );
+      return;
+    }
+
+    setConfirmLoading(true);
+
+    try {
+      await api.patch(`/upload/${uploadId}`, {
+        rows,
+      });
+      console.log("Upload ID:", uploadId);
+      window.location.href =
+        `${API_URL}/auth/microsoft?uploadId=${uploadId}`;
+
+      return;
+    } catch (err) {
+      console.error(err);
+    }
+
+    finally {
+      setConfirmLoading(false);
+    }
+  };
 
   const deleteRow = (index) => {
     if (!window.confirm("Are you sure you want to delete this shipment?")) return;
@@ -246,15 +280,15 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center">
       <div className="absolute top-4 left-4 right-4 flex justify-between">
-      <button
+        <button
 
-    onClick={() => navigate("/logs")}
+          onClick={() => navigate("/logs")}
 
-    className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 shadow hover:bg-gray-100">
-      Logs
-    </button>
+          className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 shadow hover:bg-gray-100">
+          Logs
+        </button>
 
-  <button
+        <button
           onClick={logout}
           className="absolute top-4 right-4 flex items-center gap-2 rounded-xl bg-white px-4 py-2 shadow hover:bg-gray-100"
         >
@@ -262,7 +296,7 @@ export default function Home() {
           Logout
         </button>
 
-  </div>
+      </div>
       <div className="w-full max-w-6xl px-2 sm:px-4 md:px-6">
 
         <div className="flex flex-col items-center mt-6">
@@ -376,59 +410,59 @@ export default function Home() {
 
         )}
 
-{!loading && rows.length > 0 && (
+        {!loading && rows.length > 0 && (
 
-  <div className="mt-4 md:mt-8 bg-white rounded-xl shadow-lg p-3 md:p-5">
+          <div className="mt-4 md:mt-8 bg-white rounded-xl shadow-lg p-3 md:p-5">
 
-    <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-5">
 
-      <h2 className="text-xl font-bold text-green-600">
-        Delivery Sheet
-      </h2>
+              <h2 className="text-xl font-bold text-green-600">
+                Delivery Sheet
+              </h2>
 
-      <button
-        onClick={closeSheet}
-        className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100 transition"
-      >
-        <X size={18} />
-        Close
-      </button>
+              <button
+                onClick={closeSheet}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100 transition"
+              >
+                <X size={18} />
+                Close
+              </button>
 
-    </div>
+            </div>
 
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
 
-      <div className="bg-slate-100 rounded-lg p-3">
-        <p className="text-xs text-gray-500">
-          Date
-        </p>
+              <div className="bg-slate-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500">
+                  Date
+                </p>
 
-        <p className="font-semibold">
-          {sheetDate}
-        </p>
-      </div>
+                <p className="font-semibold">
+                  {sheetDate}
+                </p>
+              </div>
 
-      <div className="bg-slate-100 rounded-lg p-3">
-        <p className="text-xs text-gray-500">
-          Total Shipments
-        </p>
+              <div className="bg-slate-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500">
+                  Total Shipments
+                </p>
 
-        <p className="font-semibold">
-          {totalShipments}
-        </p>
-      </div>
+                <p className="font-semibold">
+                  {totalShipments}
+                </p>
+              </div>
 
-      <div className="bg-slate-100 rounded-lg p-3">
-        <p className="text-xs text-gray-500">
-          Total Amount
-        </p>
+              <div className="bg-slate-100 rounded-lg p-3">
+                <p className="text-xs text-gray-500">
+                  Total Amount
+                </p>
 
-        <p className="font-semibold text-green-600">
-          ₹ {totalAmount.toFixed(2)}
-        </p>
-      </div>
+                <p className="font-semibold text-green-600">
+                  ₹ {totalAmount.toFixed(2)}
+                </p>
+              </div>
 
-    </div>
+            </div>
             <div className="flex justify-between items-center mb-4">
 
               <h3 className="font-semibold text-gray-700">
@@ -573,11 +607,23 @@ export default function Home() {
             </div>
 
             <button
-              onClick={handleConfirm}
-              className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-semibold"
-            >
-              Confirm & Add to Excel
-            </button>
+  onClick={handleConfirm}
+  disabled={confirmLoading}
+  className={`mt-6 w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2 text-white ${
+    confirmLoading
+      ? "bg-gray-500 cursor-not-allowed"
+      : "bg-indigo-600 hover:bg-indigo-700"
+  }`}
+>
+  {confirmLoading ? (
+    <>
+      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+      Uploading to Excel...
+    </>
+  ) : (
+    "Confirm & Add to Excel"
+  )}
+</button>
 
           </div>
 

@@ -42,13 +42,41 @@ exports.uploadImage = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+  console.log("========== GEMINI ERROR ==========");
 
-    res.status(500).json({
+  console.log("Message:", err.message);
+
+  console.log("Name:", err.name);
+
+  console.log("Status:", err.status);
+
+  console.log("Code:", err.code);
+
+  console.log("Full Error:", err);
+
+  console.log("==================================");
+
+  const errorText = JSON.stringify(err).toLowerCase();
+
+  if (
+    err.message?.includes("429") ||
+    err.message?.includes("RESOURCE_EXHAUSTED") ||
+    err.message?.toLowerCase().includes("quota") ||
+    errorText.includes("429") ||
+    errorText.includes("resource_exhausted")
+  ) {
+    return res.status(429).json({
       success: false,
-      message: err.message,
+      message:
+        "Gemini API rate limit reached. Please wait a few minutes and try again.",
     });
   }
+
+  res.status(500).json({
+    success: false,
+    message: "Failed to process delivery sheet.",
+  });
+}
 };
 exports.getUploads = async (req, res) => {
   try {
@@ -71,6 +99,15 @@ exports.updateUpload = async (req, res) => {
   try {
     const { rows, status } = req.body;
 
+    if (rows.length === 0) {
+      await Upload.findByIdAndDelete(req.params.id);
+
+      return res.json({
+        success: true,
+        deleted: true,
+      });
+    }
+
     const totalShipments = rows.length;
 
     const totalAmount = rows.reduce(
@@ -86,7 +123,9 @@ exports.updateUpload = async (req, res) => {
         totalAmount,
         ...(status && { status }),
       },
-      { returnDocument: "after", }
+      {
+        returnDocument: "after",
+      }
     );
 
     res.json({
