@@ -62,16 +62,9 @@ exports.uploadImage = async (req, res) => {
   }
 
   res.status(500).json({
-
-    success: false,
-
-    message: "Failed to process delivery sheet.",
-
-  });
-
-  res.status(500).json({
     success: false,
     message: "Failed to process delivery sheet.",
+
   });
 }
 };
