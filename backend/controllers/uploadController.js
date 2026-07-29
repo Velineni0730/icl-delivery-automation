@@ -42,20 +42,8 @@ exports.uploadImage = async (req, res) => {
     });
 
   } catch (err) {
-  console.log("========== GEMINI ERROR ==========");
 
-  console.log("Message:", err.message);
-
-  console.log("Name:", err.name);
-
-  console.log("Status:", err.status);
-
-  console.log("Code:", err.code);
-
-  console.log("Full Error:", err);
-
-  console.log("==================================");
-
+  console.error(err);
   const errorText = JSON.stringify(err).toLowerCase();
 
   if (
@@ -65,12 +53,21 @@ exports.uploadImage = async (req, res) => {
     errorText.includes("429") ||
     errorText.includes("resource_exhausted")
   ) {
+
     return res.status(429).json({
       success: false,
       message:
         "Gemini API rate limit reached. Please wait a few minutes and try again.",
     });
   }
+
+  res.status(500).json({
+
+    success: false,
+
+    message: "Failed to process delivery sheet.",
+
+  });
 
   res.status(500).json({
     success: false,

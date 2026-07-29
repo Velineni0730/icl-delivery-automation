@@ -106,6 +106,13 @@ export default function Home() {
     } finally {
       setLoading(false);
       setStatus("");
+      if (cameraRef.current) {
+        cameraRef.current.value = "";
+      }
+
+      if (galleryRef.current) {
+        galleryRef.current.value = "";
+      }
     }
   };
 
