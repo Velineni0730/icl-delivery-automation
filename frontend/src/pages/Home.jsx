@@ -6,8 +6,8 @@ import { auth } from "../firebase";
 import { LogOut } from "lucide-react";
 import { Trash2 } from "lucide-react";
 import { X } from "lucide-react";
-import logo from "../../assets/logo.png";
-import api from "../../services/api";
+import logo from "../assets/logo.png";
+import api from "../services/api";
 
 
 export default function Home() {
