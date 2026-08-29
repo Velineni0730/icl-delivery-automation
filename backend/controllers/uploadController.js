@@ -87,7 +87,7 @@ exports.getUploads = async (req, res) => {
 
 exports.updateUpload = async (req, res) => {
   try {
-    const { rows, status } = req.body;
+    const { rows, status, sheetDate } = req.body;
 
     if (rows.length === 0) {
       await Upload.findByIdAndDelete(req.params.id);
@@ -111,6 +111,7 @@ exports.updateUpload = async (req, res) => {
         rows,
         totalShipments,
         totalAmount,
+        ...(sheetDate !== undefined && { sheetDate }),
         ...(status && { status }),
       },
       {
