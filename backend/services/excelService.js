@@ -45,11 +45,25 @@ const month = months[Number(monthNum) - 1];
     if (!workbook)
         throw new Error(`${workbookName} not found`);
 
-    const range = await graph
-        .api(
-            `/me/drive/items/${workbook.id}/workbook/worksheets('${month}')/range(address='A13:F1000')`
-        )
-        .get();
+    const worksheets = await graph
+    .api(`/me/drive/items/${workbook.id}/workbook/worksheets`)
+    .get();
+
+const worksheet = worksheets.value.find(
+    ws => ws.name.toLowerCase() === month.toLowerCase()
+);
+
+if (!worksheet) {
+    throw new Error(
+        `Worksheet ${month.toUpperCase()} not found in ${workbookName}`
+    );
+}
+
+const range = await graph
+    .api(
+        `/me/drive/items/${workbook.id}/workbook/worksheets('${worksheet.name}')/range(address='A13:F1000')`
+    )
+    .get();
 
     const values = range.values || [];
 
@@ -75,7 +89,7 @@ const month = months[Number(monthNum) - 1];
 
     await graph
         .api(
-            `/me/drive/items/${workbook.id}/workbook/worksheets('${month}')/range(address='A${firstEmptyRow}:F${firstEmptyRow + excelRows.length - 1}')`
+            `/me/drive/items/${workbook.id}/workbook/worksheets('${worksheet.name}')/range(address='A${firstEmptyRow}:F${firstEmptyRow + excelRows.length - 1}')`
         )
         .patch({
             values: excelRows,
