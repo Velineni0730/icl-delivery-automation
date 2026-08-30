@@ -1,75 +1,22 @@
 const fs = require("fs");
 const { GoogleGenAI, Type } = require("@google/genai");
 
-const apiKeys = [
-  process.env.GEMINI_API_KEY_1,
-  process.env.GEMINI_API_KEY_2,
-].filter(Boolean);
-
-if (apiKeys.length === 0) {
-  throw new Error("No Gemini API keys configured");
-}
-
-const clients = apiKeys.map(
-  (key) => new GoogleGenAI({ apiKey: key })
-);
-
-const cooldownUntil = apiKeys.map(() => 0);
-
-function isTemporaryGeminiError(err) {
-  const errorText = JSON.stringify(err).toLowerCase();
-
-  return (
-    err?.status === 429 ||
-    err?.status === 503 ||
-    err?.code === 429 ||
-    err?.code === 503 ||
-    errorText.includes("resource_exhausted") ||
-    errorText.includes("unavailable") ||
-    errorText.includes("quota") ||
-    errorText.includes("high demand")
-  );
-}
-
-function setCooldown(index, err) {
-  const errorText = JSON.stringify(err).toLowerCase();
-
-  if (
-    errorText.includes("per day") ||
-    errorText.includes("daily") ||
-    errorText.includes("rpd")
-  ) {
-    cooldownUntil[index] = Date.now() + 24 * 60 * 60 * 1000;
-    return;
-  }
-
-  cooldownUntil[index] = Date.now() + 60 * 1000;
-}
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
 
 async function extractDeliverySheet(imagePath) {
   const imageBuffer = fs.readFileSync(imagePath);
 
-  let lastError = null;
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
 
-  for (let i = 0; i < clients.length; i++) {
-
-    if (Date.now() < cooldownUntil[i]) {
-      console.log(`Gemini API key ${i + 1} is on cooldown. Skipping...`);
-      continue;
-    }
-
-    try {
-      console.log(`Using Gemini API key ${i + 1}`);
-
-      const response = await clients[i].models.generateContent({
-        model: "gemini-3.5-flash",
-
-        contents: [
+    contents: [
+      {
+        role: "user",
+        parts: [
           {
-            role: "user",
-            parts: [
-              {
-                text: `
+            text: `
 Extract ONLY the following from this courier delivery sheet.
 
 For the sheet:
@@ -86,89 +33,59 @@ Route, Origin, Destination, COD, Remarks.
 
 Return only the extracted data.
 `,
-              },
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: imageBuffer.toString("base64"),
-                },
-              },
-            ],
+          },
+          {
+            inlineData: {
+              mimeType: "image/jpeg",
+              data: imageBuffer.toString("base64"),
+            },
           },
         ],
+      },
+    ],
 
-        config: {
-          responseMimeType: "application/json",
+    config: {
+      responseMimeType: "application/json",
 
-          responseSchema: {
-            type: Type.OBJECT,
+      responseSchema: {
+        type: Type.OBJECT,
 
-            properties: {
-              date: {
-                type: Type.STRING,
-              },
+        properties: {
+          date: {
+            type: Type.STRING,
+          },
 
-              rows: {
-                type: Type.ARRAY,
+          rows: {
+            type: Type.ARRAY,
 
-                items: {
-                  type: Type.OBJECT,
+            items: {
+              type: Type.OBJECT,
 
-                  properties: {
-                    awb: {
-                      type: Type.STRING,
-                    },
+              properties: {
+                awb: {
+                  type: Type.STRING,
+                },
 
-                    pieces: {
-                      type: Type.INTEGER,
-                    },
+                pieces: {
+                  type: Type.INTEGER,
+                },
 
-                    weight: {
-                      type: Type.NUMBER,
-                    },
-                  },
-
-                  required: ["awb", "pieces", "weight"],
+                weight: {
+                  type: Type.NUMBER,
                 },
               },
-            },
 
-            required: ["date", "rows"],
+              required: ["awb", "pieces", "weight"],
+            },
           },
         },
-      });
 
-      console.log(`Gemini API key ${i + 1} succeeded.`);
+        required: ["date", "rows"],
+      },
+    },
+  });
 
-      return JSON.parse(response.text);
-
-    } catch (err) {
-
-      console.error(
-        `Gemini API key ${i + 1} failed:`,
-        err.message
-      );
-
-      lastError = err;
-      
-      if (isTemporaryGeminiError(err)) {
-
-        setCooldown(i, err);
-
-        console.log(
-          `Gemini API key ${i + 1} is temporarily unavailable.`
-        );
-
-        console.log("Trying next API key...");
-
-        continue;
-      }
-
-      throw err;
-    }
-  }
-
-  throw lastError;
+  return JSON.parse(response.text);
 }
 
 module.exports = {
