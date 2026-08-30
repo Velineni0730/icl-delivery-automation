@@ -3,7 +3,7 @@ const router = express.Router();
 
 const msalClient = require("../services/msal");
 const Upload = require("../models/upload");
-const { appendShipments } = require("../services/excelService");
+const { appendShipments, findDuplicateAwbs, } = require("../services/excelService");
 
 router.get("/microsoft", async (req, res) => {
   try {
@@ -57,6 +57,22 @@ if (upload.status === "AddedToExcel") {
 }
 
 try {
+  const duplicates = await findDuplicateAwbs(
+    tokenResponse.accessToken,
+    upload.rows,
+    upload.sheetDate
+  );
+
+  if (duplicates.length > 0) {
+    console.log("Duplicate AWBs found:", duplicates);
+
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/home?duplicateAwbs=${encodeURIComponent(
+        duplicates.join(",")
+      )}`
+    );
+  }
+
   await appendShipments(
     tokenResponse.accessToken,
     upload.rows,
