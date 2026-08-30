@@ -28,6 +28,21 @@ export default function Home() {
   useEffect(() => {
     loadPendingUploads();
   }, []);
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const duplicateAwbs = params.get("duplicateAwbs");
+
+  if (duplicateAwbs) {
+    const awbs = duplicateAwbs.split(",");
+
+    alert(
+      `Duplicate AWB found.\n\n${awbs.join("\n")}\n\nThese AWBs are already present in this month's Excel sheet.`
+    );
+
+    window.history.replaceState({}, "", "/home");
+  }
+}, []);
+
 
   const closeSheet = () => {
     setUploadId(null);
