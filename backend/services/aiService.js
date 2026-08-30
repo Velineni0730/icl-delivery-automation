@@ -16,12 +16,18 @@ const clients = apiKeys.map(
 
 const cooldownUntil = apiKeys.map(() => 0);
 
-function isRateLimitError(err) {
+function isTemporaryGeminiError(err) {
+  const errorText = JSON.stringify(err).toLowerCase();
+
   return (
     err?.status === 429 ||
+    err?.status === 503 ||
     err?.code === 429 ||
-    err?.status === "RESOURCE_EXHAUSTED" ||
-    err?.error?.status === "RESOURCE_EXHAUSTED"
+    err?.code === 503 ||
+    errorText.includes("resource_exhausted") ||
+    errorText.includes("unavailable") ||
+    errorText.includes("quota") ||
+    errorText.includes("high demand")
   );
 }
 
@@ -43,10 +49,12 @@ function setCooldown(index, err) {
 async function extractDeliverySheet(imagePath) {
   const imageBuffer = fs.readFileSync(imagePath);
 
-  let lastRateLimitError = null;
+  let lastError = null;
 
   for (let i = 0; i < clients.length; i++) {
+
     if (Date.now() < cooldownUntil[i]) {
+      console.log(`Gemini API key ${i + 1} is on cooldown. Skipping...`);
       continue;
     }
 
@@ -130,25 +138,37 @@ Return only the extracted data.
         },
       });
 
+      console.log(`Gemini API key ${i + 1} succeeded.`);
+
       return JSON.parse(response.text);
 
     } catch (err) {
-      console.error(`Gemini API key ${i + 1} failed:`, err.message);
 
-      if (!isRateLimitError(err)) {
-        throw err;
+      console.error(
+        `Gemini API key ${i + 1} failed:`,
+        err.message
+      );
+
+      lastError = err;
+      
+      if (isTemporaryGeminiError(err)) {
+
+        setCooldown(i, err);
+
+        console.log(
+          `Gemini API key ${i + 1} is temporarily unavailable.`
+        );
+
+        console.log("Trying next API key...");
+
+        continue;
       }
 
-      lastRateLimitError = err;
-
-      setCooldown(i, err);
-
-      console.log(`Gemini API key ${i + 1} is on cooldown.`);
-      console.log("Trying next API key...");
+      throw err;
     }
   }
 
-  throw lastRateLimitError;
+  throw lastError;
 }
 
 module.exports = {
