@@ -174,16 +174,6 @@ export default function Home() {
 
     setRows(updated);
     clearTimeout(saveTimeout.current);
-
-    const handleDateChange = (value) => {
-      setSheetDate(value);
-
-      clearTimeout(saveTimeout.current);
-
-      saveTimeout.current = setTimeout(() => {
-        saveChanges(rows, value);
-      }, 1000);
-    };
   };
 
   const saveChanges = async (updatedRows, updatedDate = sheetDate) => {
@@ -226,33 +216,6 @@ export default function Home() {
     } catch (err) {
       console.error("Failed to save changes", err);
     }
-  };
-
-  const normalizeDate = (value) => {
-    const parts = value.split(/[/-]/);
-
-    if (parts.length !== 3) {
-      return value;
-    }
-
-    let [day, month, year] = parts;
-
-    day = day.padStart(2, "0");
-    month = month.padStart(2, "0");
-
-    return `${day}-${month}-${year}`;
-  };
-
-  const handleDateChange = (value) => {
-    const normalizedDate = normalizeDate(value);
-
-    setSheetDate(normalizedDate);
-
-    clearTimeout(saveTimeout.current);
-
-    saveTimeout.current = setTimeout(() => {
-      saveChanges(rows, normalizedDate);
-    }, 1000);
   };
 
   const totalShipments = rows.length;
@@ -331,6 +294,31 @@ export default function Home() {
   useEffect(() => {
     return () => clearTimeout(saveTimeout.current);
   }, []);
+
+  const deleteDeliverySheet = async () => {
+  if (!uploadId) return;
+
+  const confirmed = window.confirm(
+    "Are you sure you want to delete this delivery sheet?\n\nThis action cannot be undone."
+  );
+
+  if (!confirmed) return;
+
+  try {
+    await api.delete(`/upload/${uploadId}`);
+
+    setUploadId(null);
+    setSheetDate("");
+    setRows([]);
+
+    await loadPendingUploads();
+
+    alert("Delivery sheet deleted successfully.");
+  } catch (err) {
+    console.error("Failed to delete delivery sheet", err);
+    alert("Failed to delete delivery sheet.");
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-100 flex justify-center">
@@ -437,26 +425,35 @@ export default function Home() {
 
               <div className="flex items-center gap-2">
                 <button
+                  onClick={deleteDeliverySheet}
+                  className="flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition cursor-pointer"
+                  title="Delete delivery sheet"
+                >
+                  <Trash2 size={17} />
+                  <span>Delete</span>
+                </button>
+
+                <button
                   onClick={saveDraft}
                   className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium hover:bg-gray-100 transition cursor-pointer"
                   title="Save draft"
                 >
                   <Save size={17} />
-                  <span>Save Draft</span>
+                  <span>Save</span>
                 </button>
 
                 <button
                   onClick={closeSheet}
-                  className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition cursor-pointer"
+                  className="flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 transition cursor-pointer"
+                  title="Close"
                 >
                   <X size={18} />
-                  Close
+                  <span>Close</span>
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
-              {/* Date */}
               <div className="bg-slate-100 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">Sheet Date</p>

@@ -9,6 +9,7 @@ const {
   getPendingUploads,
   getLogs,
   confirmUpload,
+  deleteUpload,
 } = require("../controllers/uploadController");
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.get("/", getUploads);
 router.get("/pending", getPendingUploads);
 router.get("/logs", getLogs);
 router.get("/:id", getUpload);
+router.delete("/:id", deleteUpload);
 
 const storage = multer.diskStorage({
   destination: "uploads",

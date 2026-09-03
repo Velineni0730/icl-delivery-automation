@@ -68,6 +68,25 @@ exports.uploadImage = async (req, res) => {
   });
 }
 };
+
+exports.deleteUpload = async (req, res) => {
+  try {
+    await Upload.findByIdAndDelete(req.params.id);
+
+    res.json({
+      success: true,
+      message: "Delivery sheet deleted successfully",
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete delivery sheet",
+    });
+  }
+};
+
 exports.getUploads = async (req, res) => {
   try {
     const uploads = await Upload.find()
