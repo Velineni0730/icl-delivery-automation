@@ -9,7 +9,7 @@ async function extractDeliverySheet(imagePath) {
   const imageBuffer = fs.readFileSync(imagePath);
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.6-flash",
 
     contents: [
       {
@@ -17,19 +17,27 @@ async function extractDeliverySheet(imagePath) {
         parts: [
           {
             text: `
-Extract ONLY the following from this courier delivery sheet.
+Extract the delivery run sheet into structured JSON.
 
 For the sheet:
 - Runsheet Date
+- Delivery Staff name
 
-For every shipment row:
+For every shipment row (maximum 8):
+- S.No.
 - AWB Number
-- Pieces
-- Charge Weight
+- Pieces (Pcs)
+- Charge Weight (Wt)
 
-Ignore everything else:
-Customer Name, Address, Phone, Receiver, Signature, OTP,
-Route, Origin, Destination, COD, Remarks.
+For Delivery Details ONLY:
+- Phone number: extract only a clearly visible 10-digit number, otherwise null.
+- Sign: if a signature is present, return the clearly readable person's name; otherwise "sign"; if no signature, null.
+- Stamp: true if an official stamp is visible, otherwise false.
+
+Ignore Origin and Consignee Address completely for receiver/sign/stamp/phone detection.
+Ignore the printed Runsheet Number.
+
+Do not guess unclear information.
 
 Return only the extracted data.
 `,
@@ -55,13 +63,22 @@ Return only the extracted data.
             type: Type.STRING,
           },
 
+          deliveryStaff: {
+            type: Type.STRING,
+          },
+
           rows: {
             type: Type.ARRAY,
+            maxItems: 8,
 
             items: {
               type: Type.OBJECT,
 
               properties: {
+                serialNumber: {
+                  type: Type.INTEGER,
+                },
+
                 awb: {
                   type: Type.STRING,
                 },
@@ -73,14 +90,42 @@ Return only the extracted data.
                 weight: {
                   type: Type.NUMBER,
                 },
+
+                deliveryDetails: {
+                  type: Type.OBJECT,
+
+                  properties: {
+                    phone: {
+                      type: Type.STRING,
+                      nullable: true,
+                    },
+
+                    sign: {
+                      type: Type.STRING,
+                      nullable: true,
+                    },
+
+                    stamp: {
+                      type: Type.BOOLEAN,
+                    },
+                  },
+
+                  required: ["phone", "sign", "stamp"],
+                },
               },
 
-              required: ["awb", "pieces", "weight"],
+              required: [
+                "serialNumber",
+                "awb",
+                "pieces",
+                "weight",
+                "deliveryDetails",
+              ],
             },
           },
         },
 
-        required: ["date", "rows"],
+        required: ["date", "deliveryStaff", "rows"],
       },
     },
   });
